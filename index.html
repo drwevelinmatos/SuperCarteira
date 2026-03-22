@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<!Super Carteira Code 5>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão de Patrimônio - Modelo Médico</title>
+    <style>
+        :root { --primary: #1a2a3a; --accent: #27ae60; --bg: #f8f9fa; --text: #333; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 25px; padding-bottom: 10px; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .card { background: var(--primary); color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .card span { display: block; font-size: 0.8rem; opacity: 0.8; }
+        .card strong { font-size: 1.2rem; }
+
+        .form-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; background: #edf2f7; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+        select, input, button { padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; }
+        button { background: var(--accent); color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #219150; transform: translateY(-1px); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th { background: #e2e8f0; color: #4a5568; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 12px; border-bottom: 1px solid #edf2f7; font-size: 13px; }
+
+        .row-group { background: #cbd5e0; font-weight: bold; }
+        .row-subgroup { background: #edf2f7; font-weight: bold; }
+        .row-strategy { background: #f7fafc; font-style: italic; color: #4a5568; }
+        
+        .indent-1 { padding-left: 20px; }
+        .indent-2 { padding-left: 40px; }
+        .indent-3 { padding-left: 60px; color: #2d3748; font-weight: 500; }
+        
+        .date-info { font-size: 10px; color: #a0aec0; display: block; }
+        .btn-del { background:#e53e3e; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2>Sistema de Alocação de Ativos</h2>
+        <div id="data-geral" style="color: #718096; font-size: 14px;"></div>
+    </header>
+
+    <div class="summary-cards">
+        <div class="card"><span>Patrimônio Total</span><strong id="total-investido">R$ 0,00</strong></div>
+        <div class="card" style="background: #2d3748;"><span>Qtd. de Ativos</span><strong id="qtd-ativos">0</strong></div>
+    </div>
+
+    <div class="form-box">
+        <select id="selGrupo" onchange="popularSubgrupos()">
+            <option value="">Grupo...</option>
+            <option value="RESERVA">Reserva de Emergência</option>
+            <option value="SUPER_CARTEIRA">Super Carteira</option>
+            <option value="PREVIDENCIA">Previdência</option>
+            <option value="SATELITE">Satélite</option>
+        </select>
+        <select id="selSubgrupo" onchange="popularEstrategias()">
+            <option value="">Subgrupo...</option>
+        </select>
+        <select id="selEstrategia">
+            <option value="">Estratégia...</option>
+        </select>
+        <input type="text" id="nomeAtivo" placeholder="Ativo (Ex: XP Selic)">
+        <input type="text" id="cnpjAtivo" placeholder="CNPJ">
+        <input type="number" id="valorAtual" placeholder="Valor Atual (R$)">
+        <button onclick="adicionarAtivo()">Adicionar/Salvar</button>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table id="tabelaMaster">
+            <thead>
+                <tr>
+                    <th>Estrutura / Ativo</th>
+                    <th>CNPJ</th>
+                    <th>Valor Atual</th>
+                    <th>% no Grupo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const estrutura = {
+        "RESERVA": { 
+            nome: "RESERVA DE EMERGÊNCIA", 
+            subgrupos: { "Segurança": { "Fundo Taxa Zero": 0, "Reserva Alternativa": 0 } }
+        },
+        "SUPER_CARTEIRA": { 
+            nome: "SUPER CARTEIRA", 
+            subgrupos: { 
+                "Estabilidade": { "Baunilha": 70, "Pimentinha": 30 }, 
+                "Diversificação": { "Viés Macro": 30, "Ex-Tesoureiros": 40, "Viés Global": 20, "Agro": 3, "Infraestrutura": 5, "Pimentinha": 2 }, 
+                "Valorização": { "Qualidade": 40, "Fora do Radar": 15, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 }, 
+                "Antifragilidade": { "Ouro": 33.4, "Dólar": 66.6 } 
+            }
+        },
+        "PREVIDENCIA": { 
+            nome: "PREVIDÊNCIA", 
+            subgrupos: { 
+                "Estabilidade": { "Baunilha": 70, "Pimentinha": 30 },
+                "Diversificação": { "Viés Macro": 35, "Ex-Tesoureiros": 40, "Viés Global": 22, "Pimentinha": 3 },
+                "Valorização": { "Qualidade": 40, "Fora do Radar": 30, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 },
+                "Fundos de Fundos": { "Fundos de Fundos": 100 } 
+            }
+        },
+        "SATELITE": { 
+            nome: "SATÉLITE", 
+            subgrupos: { "Cripto": { "Cripto": 100 } } 
+        }
+    };
+
+    let carteira = JSON.parse(localStorage.getItem('invest_docs_v1')) || [];
+
+    function popularSubgrupos() {
+        const g = document.getElementById('selGrupo').value;
+        const s = document.getElementById('selSubgrupo');
+        s.innerHTML = '<option value="">Subgrupo...</option>';
+        document.getElementById('selEstrategia').innerHTML = '<option value="">Estratégia...</option>';
+        if(g) Object.keys(estrutura[g].subgrupos).forEach(sub => s.innerHTML += `<option value="${sub}">${sub}</option>`);
+    }
+
+    function popularEstrategias() {
+        const g = document.getElementById('selGrupo').value;
+        const s = document.getElementById('selSubgrupo').value;
+        const e = document.getElementById('selEstrategia');
+        e.innerHTML = '<option value="">Estratégia...</option>';
+        if(g && s) Object.keys(estrutura[g].subgrupos[s]).forEach(est => e.innerHTML += `<option value="${est}">${est}</option>`);
+    }
+
+    function adicionarAtivo() {
+        const item = {
+            id: Date.now(),
+            g: document.getElementById('selGrupo').value,
+            s: document.getElementById('selSubgrupo').value,
+            e: document.getElementById('selEstrategia').value,
+            nome: document.getElementById('nomeAtivo').value,
+            cnpj: document.getElementById('cnpjAtivo').value,
+            valor: parseFloat(document.getElementById('valorAtual').value) || 0,
+            data: new Date().toLocaleDateString()
+        };
+        if(!item.e || !item.nome || !item.valor) return alert("Preencha todos os campos!");
+        carteira.push(item);
+        render();
+    }
+
+    function render() {
+        localStorage.setItem('invest_docs_v1', JSON.stringify(carteira));
+        const corpo = document.getElementById('corpoTabela');
+        corpo.innerHTML = '';
+        
+        let totalGlobal = carteira.reduce((a, b) => a + b.valor, 0);
+        document.getElementById('total-investido').innerText = `R$ ${totalGlobal.toLocaleString('pt-BR')}`;
+        document.getElementById('qtd-ativos').innerText = carteira.length;
+
+        Object.keys(estrutura).forEach(gKey => {
+            const ativosG = carteira.filter(a => a.g === gKey);
+            if(ativosG.length === 0) return;
+
+            const totalG = ativosG.reduce((a, b) => a + b.valor, 0);
+            corpo.innerHTML += `<tr class="row-group"><td>${estrutura[gKey].nome}</td><td colspan="2">Total: R$ ${totalG.toLocaleString('pt-BR')}</td><td colspan="2"></td></tr>`;
+
+            Object.keys(estrutura[gKey].subgrupos).forEach(sKey => {
+                const ativosS = ativosG.filter(a => a.s === sKey);
+                if(ativosS.length === 0) return;
+
+                corpo.innerHTML += `<tr class="row-subgroup"><td class="indent-1">↳ ${sKey}</td><td colspan="4"></td></tr>`;
+
+                Object.keys(estrutura[gKey].subgrupos[sKey]).forEach(eKey => {
+                    const ativosE = ativosS.filter(a => a.e === eKey);
+                    if(ativosE.length === 0) return;
+
+                    corpo.innerHTML += `<tr class="row-strategy"><td class="indent-2">-- ${eKey}</td><td colspan="4"></td></tr>`;
+
+                    ativosE.forEach(item => {
+                        const percNoGrupo = totalG > 0 ? (item.valor / totalG * 100) : 0;
+                        corpo.innerHTML += `
+                            <tr>
+                                <td class="indent-3">${item.nome} <span class="date-info">Editado em: ${item.data}</span></td>
+                                <td>${item.cnpj}</td>
+                                <td>R$ ${item.valor.toLocaleString('pt-BR')}</td>
+                                <td>${percNoGrupo.toFixed(1)}%</td>
+                                <td><button class="btn-del" onclick="remover(${item.id})">Remover</button></td>
+                            </tr>
+                        `;
+                    });
+                });
+            });
+        });
+    }
+
+    function remover(id) {
+        if(confirm("Deseja remover este ativo?")) {
+            carteira = carteira.filter(i => i.id !== id);
+            render();
+        }
+    }
+
+    render();
+    document.getElementById('data-geral').innerText = "Acesso em: " + new Date().toLocaleDateString();
+</script>
+
+</body>
+</html>
