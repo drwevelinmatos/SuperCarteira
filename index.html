@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<!-- Distribuição de Aporte -->
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Rebalanceamento</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
+        th { background: #f8f9fa; }
+        .aporte-sugerido { font-weight: bold; color: #27ae60; }
+        .total-row { background: #f1f1f1; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Rebalanceamento de Ativos</h2>
+    
+    <div class="form-group">
+        <label>Tipo de Alocação:</label>
+        <select id="tipoAlocacao" onchange="calcular()">
+            <option value="carteira">Carteira</option>
+            <option value="previdencia">Previdência</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label>Valor para Aportar (R$):</label>
+        <input type="number" id="valorAporte" value="0" oninput="calcular()">
+    </div>
+
+    <div id="ativos-inputs">
+        <!-- Gerado via JS -->
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Classe</th>
+                <th>Alvo</th>
+                <th>Sugestão de Aporte</th>
+            </tr>
+        </thead>
+        <tbody id="resultadoBody">
+            <!-- Resultados aparecerão aqui -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const configs = {
+        carteira: [
+            { nome: "Estabilidade", alvo: 0.225 },
+            { nome: "Diversificação", alvo: 0.40 },
+            { nome: "Valorização", alvo: 0.30 },
+            { nome: "Antifragilidade", alvo: 0.075 }
+        ],
+        previdencia: [
+            { nome: "Estabilidade", alvo: 0.225 },
+            { nome: "Diversificação", alvo: 0.40 },
+            { nome: "Valorização", alvo: 0.30 },
+            { nome: "Fundos de fundos", alvo: 0.075 }
+        ]
+    };
+
+    function inicializarInputs() {
+        const tipo = document.getElementById('tipoAlocacao').value;
+        const container = document.getElementById('ativos-inputs');
+        container.innerHTML = '<h3>Saldos Atuais:</h3>';
+        
+        configs[tipo].forEach((ativo, index) => {
+            container.innerHTML += `
+                <div class="form-group">
+                    <label>${ativo.nome} (R$):</label>
+                    <input type="number" class="saldo-atual" data-index="${index}" value="0" oninput="calcular()">
+                </div>
+            `;
+        });
+        calcular();
+    }
+
+    function calcular() {
+        const tipo = document.getElementById('tipoAlocacao').value;
+        const aporteDisponivel = parseFloat(document.getElementById('valorAporte').value) || 0;
+        const saldosInputs = document.querySelectorAll('.saldo-atual');
+        const classes = configs[tipo];
+        
+        let saldoTotalAtual = 0;
+        let saldos = [];
+
+        saldosInputs.forEach(input => {
+            let v = parseFloat(input.value) || 0;
+            saldos.push(v);
+            saldoTotalAtual += v;
+        });
+
+        const patrimonioFinalAlvo = saldoTotalAtual + aporteDisponivel;
+
+        // Lógica de Necessidade Bruta (Coluna H do seu Excel)
+        let necessidades = classes.map((classe, i) => {
+            let valorIdeal = patrimonioFinalAlvo * classe.alvo;
+            return Math.max(0, valorIdeal - saldos[i]);
+        });
+
+        const somaNecessidades = necessidades.reduce((a, b) => a + b, 0);
+        
+        // Distribuição Proporcional (Coluna E do seu Excel)
+        const htmlBody = document.getElementById('resultadoBody');
+        htmlBody.innerHTML = '';
+
+        necessidades.forEach((necessidade, i) => {
+            let aporteSugerido = 0;
+            if (somaNecessidades > 0) {
+                aporteSugerido = aporteDisponivel * (necessidade / somaNecessidades);
+            } else {
+                // Se tudo estiver equilibrado, distribui pelo alvo original
+                aporteSugerido = aporteDisponivel * classes[i].alvo;
+            }
+
+            htmlBody.innerHTML += `
+                <tr>
+                    <td>${classes[i].nome}</td>
+                    <td>${(classes[i].alvo * 100).toFixed(1)}%</td>
+                    <td class="aporte-sugerido">R$ ${aporteSugerido.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                </tr>
+            `;
+        });
+    }
+
+    // Inicializa a tela ao carregar
+    document.getElementById('tipoAlocacao').addEventListener('change', inicializarInputs);
+    inicializarInputs();
+</script>
+
+</body>
+</html>
