@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<Super Carteira - Code3>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão de Patrimônio - Modelo Médico</title>
+    <style>
+        :root {
+            --primary: #1a2a3a;
+            --accent: #27ae60;
+            --bg: #f8f9fa;
+            --text: #333;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 25px; padding-bottom: 10px; }
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .card { background: var(--primary); color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .card span { display: block; font-size: 0.8rem; opacity: 0.8; }
+        .card strong { font-size: 1.2rem; }
+
+        .form-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; background: #edf2f7; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+        select, input, button { padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 13px; }
+        button { background: var(--accent); color: white; font-weight: bold; border: none; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #219150; transform: translateY(-1px); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
+        th { background: #e2e8f0; color: #4a5568; padding: 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 12px; border-bottom: 1px solid #edf2f7; font-size: 13px; }
+
+        .row-group { background: #f1f5f9; font-weight: bold; color: var(--primary); }
+        .row-subgroup { background: #fafafa; font-weight: 600; color: #4a5568; padding-left: 25px; }
+        .neg { color: #e53e3e; font-weight: bold; }
+        .pos { color: #38a169; font-weight: bold; }
+        .date-info { font-size: 10px; color: #a0aec0; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2>Sistema de Alocação de Ativos</h2>
+        <div id="data-geral" style="color: #718096; font-size: 14px;"></div>
+    </header>
+
+    <div class="summary-cards">
+        <div class="card"><span>Patrimônio Total</span><strong id="total-investido">R$ 0,00</strong></div>
+        <div class="card" style="background: #2d3748;"><span>Qtd. de Ativos</span><strong id="qtd-ativos">0</strong></div>
+    </div>
+
+    <!-- Formulário Dinâmico -->
+    <div class="form-box">
+        <select id="selGrupo" onchange="popularSubgrupos()">
+            <option value="">Grupo...</option>
+            <option value="RESERVA">Reserva de Emergência</option>
+            <option value="SUPER_CARTEIRA">Super Carteira</option>
+            <option value="PREVIDENCIA">Previdência</option>
+            <option value="SATELITE">Satélite</option>
+        </select>
+        <select id="selSubgrupo">
+            <option value="">Subgrupo...</option>
+        </select>
+        <input type="text" id="nomeAtivo" placeholder="Ativo (Ex: XP Selic)">
+        <input type="text" id="cnpjAtivo" placeholder="CNPJ">
+        <input type="number" id="valorAtual" placeholder="Valor (R$)">
+        <button onclick="adicionarAtivo()">Salvar Atualização</button>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table id="tabelaMaster">
+            <thead>
+                <tr>
+                    <th>Grupo / Subgrupo / Ativo</th>
+                    <th>CNPJ</th>
+                    <th>Valor Atual</th>
+                    <th>% Real (No Grupo)</th>
+                    <th>% Alvo (No Grupo)</th>
+                    <th>Valor Alvo</th>
+                    <th>Ajuste (Aporte)</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Estrutura de Alocação Conforme Seu Prompt
+    const estrutura = {
+        "RESERVA": { nome: "RESERVA DE EMERGÊNCIA", subgrupos: { "Segurança": 100 }, itens: ["Fundo Taxa Zero", "Reserva Alternativa"] },
+        "SUPER_CARTEIRA": { 
+            nome: "SUPER CARTEIRA", 
+            subgrupos: { "Estabilidade": 22.5, "Diversificação": 40, "Valorização": 30, "Antifragilidade": 7.5 },
+            alvosInternos: {
+                "Estabilidade": { "Baunilha": 70, "Pimentinha": 30 },
+                "Diversificação": { "Viés Macro": 30, "Ex-Tesoureiros": 40, "Viés Global": 20, "Agro": 3, "Infraestrutura": 5, "Pimentinha": 2 },
+                "Valorização": { "Qualidade": 40, "Fora do Radar": 15, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 },
+                "Antifragilidade": { "Ouro": 33.4, "Dólar": 66.6 }
+            }
+        },
+        "PREVIDENCIA": {
+            nome: "PREVIDÊNCIA",
+            subgrupos: { "Estabilidade": 22.5, "Diversificação": 40, "Valorização": 30, "Fundos de Fundos": 7.5 },
+            alvosInternos: {
+                "Estabilidade": { "Baunilha": 70, "Pimentinha": 30 },
+                "Diversificação": { "Viés Macro": 35, "Ex-Tesoureiros": 40, "Viés Global": 22, "Pimentinha": 3 },
+                "Valorização": { "Qualidade": 40, "Fora do Radar": 30, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 },
+                "Fundos de Fundos": { "Fundos de Fundos": 100 }
+            }
+        },
+        "SATELITE": { nome: "SATÉLITE", subgrupos: { "Cripto": 100 } }
+    };
+
+    let carteira = JSON.parse(localStorage.getItem('invest_docs_v1')) || [];
+
+    function popularSubgrupos() {
+        const grupoKey = document.getElementById('selGrupo').value;
+        const comboSub = document.getElementById('selSubgrupo');
+        comboSub.innerHTML = '<option value="">Subgrupo...</option>';
+        
+        if(grupoKey && estrutura[grupoKey].alvosInternos) {
+            Object.keys(estrutura[grupoKey].alvosInternos).forEach(sub => {
+                comboSub.innerHTML += `<option value="${sub}">${sub}</option>`;
+            });
+        } else if (grupoKey === "RESERVA" || grupoKey === "SATELITE") {
+             Object.keys(estrutura[grupoKey].subgrupos).forEach(sub => {
+                comboSub.innerHTML += `<option value="${sub}">${sub}</option>`;
+            });
+        }
+    }
+
+    function adicionarAtivo() {
+        const ativo = {
+            id: Date.now(),
+            grupoKey: document.getElementById('selGrupo').value,
+            subgrupo: document.getElementById('selSubgrupo').value,
+            nome: document.getElementById('nomeAtivo').value,
+            cnpj: document.getElementById('cnpjAtivo').value,
+            valor: parseFloat(document.getElementById('valorAtual').value) || 0,
+            data: new Date().toLocaleString('pt-BR')
+        };
+        if(!ativo.grupoKey || !ativo.valor) return alert("Preencha os dados básicos!");
+        carteira.push(ativo);
+        render();
+    }
+
+    function render() {
+        localStorage.setItem('invest_docs_v1', JSON.stringify(carteira));
+        const corpo = document.getElementById('corpoTabela');
+        corpo.innerHTML = '';
+        
+        let totalGlobal = carteira.reduce((a, b) => a + b.valor, 0);
+        document.getElementById('total-investido').innerText = `R$ ${totalGlobal.toLocaleString('pt-BR')}`;
+        document.getElementById('qtd-ativos').innerText = carteira.length;
+
+        Object.keys(estrutura).forEach(gKey => {
+            const ativosNoGrupo = carteira.filter(i => i.grupoKey === gKey);
+            if(ativosNoGrupo.length === 0) return;
+
+            const totalNoGrupo = ativosNoGrupo.reduce((a, b) => a + b.valor, 0);
+            corpo.innerHTML += `<tr class="row-group"><td colspan="2">${estrutura[gKey].nome}</td><td>R$ ${totalNoGrupo.toLocaleString('pt-BR')}</td><td colspan="5"></td></tr>`;
+
+            // Lógica de Subgrupos
+            const subgruposNoAtivo = [...new Set(ativosNoGrupo.map(a => a.subgrupo))];
+            subgruposNoAtivo.forEach(subNome => {
+                const ativosNoSub = ativosNoGrupo.filter(a => a.subgrupo === subNome);
+                const totalNoSub = ativosNoSub.reduce((a, b) => a + b.valor, 0);
+                
+                // Cálculo de Alvos Baseado no seu prompt
+                const alvoDoSubNoGrupo = estrutura[gKey].subgrupos[subNome] || 0;
+                const valorAlvoSub = totalNoGrupo * (alvoDoSubNoGrupo / 100);
+
+                corpo.innerHTML += `<tr class="row-subgroup"><td colspan="2">↳ ${subNome} (${alvoDoSubNoGrupo}%)</td><td>R$ ${totalNoSub.toLocaleString('pt-BR')}</td><td colspan="5"></td></tr>`;
+
+                ativosNoSub.forEach(item => {
+                    const percRealNoGrupo = totalNoGrupo > 0 ? (item.valor / totalNoGrupo) * 100 : 0;
+                    
+                    // Aqui você pode definir alvos específicos por ativo se desejar, 
+                    // por enquanto ele compara o Real vs o que deveria estar no Subgrupo
+                    corpo.innerHTML += `
+                        <tr>
+                            <td style="padding-left: 45px;">${item.nome} <span class="date-info">Editado em: ${item.data}</span></td>
+                            <td>${item.cnpj}</td>
+                            <td>R$ ${item.valor.toLocaleString('pt-BR')}</td>
+                            <td>${percRealNoGrupo.toFixed(1)}%</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td><button onclick="remover(${item.id})" style="background:#e53e3e; padding: 4px 8px; font-size: 10px;">Remover</button></td>
+                        </tr>
+                    `;
+                });
+            });
+        });
+    }
+
+    function remover(id) {
+        carteira = carteira.filter(i => i.id !== id);
+        render();
+    }
+
+    render();
+    document.getElementById('data-geral').innerText = "Acesso em: " + new Date().toLocaleDateString();
+</script>
+
+</body>
+</html>
