@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<! Super Carteira Code 8 >
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão de Patrimônio V9 - Backup & Export</title>
+    <style>
+        :root { --primary: #1a2a3a; --accent: #27ae60; --bg: #f8f9fa; --blue: #3182ce; --orange: #e67e22; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; font-size: 12px; }
+        .container { max-width: 1600px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .summary-cards { display: flex; gap: 20px; margin-bottom: 20px; }
+        .card { flex: 1; background: var(--primary); color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        
+        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; justify-content: flex-end; }
+        .btn-tool { padding: 8px 15px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; color: white; font-size: 11px; }
+        .btn-csv { background: var(--accent); }
+        .btn-backup { background: var(--orange); }
+        .btn-simular { background: var(--blue); padding: 10px 20px; font-size: 12px; }
+
+        .form-box { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; background: #edf2f7; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        select, input, button { padding: 8px; border: 1px solid #cbd5e0; border-radius: 4px; }
+        .btn-add { background: var(--accent); color: white; cursor: pointer; font-weight: bold; border: none; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #2d3748; color: white; padding: 10px; text-align: left; }
+        td { padding: 8px; border-bottom: 1px solid #eee; }
+        
+        .row-group { background: #1a2a3a; color: white; font-weight: bold; }
+        .row-subgroup { background: #cbd5e0; font-weight: bold; }
+        .row-strategy { background: #e2e8f0; font-weight: 600; }
+        
+        .row-history { background: #fff; font-size: 11px; color: #718096; }
+        .indent-history { padding-left: 50px; border-left: 2px solid #cbd5e0; }
+        
+        .pos { color: #27ae60; font-weight: bold; }
+        .neg { color: #e53e3e; font-weight: bold; }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); }
+        .modal-content { background: white; margin: 5% auto; padding: 25px; width: 500px; border-radius: 12px; position: relative; }
+        .close { position: absolute; right: 20px; top: 15px; font-size: 20px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2>Dashboard de Investimentos Estratégicos</h2>
+        <div class="toolbar">
+            <button class="btn-tool btn-csv" onclick="exportarCSV()">📥 Exportar Excel (CSV)</button>
+            <button class="btn-tool btn-backup" onclick="document.getElementById('importFile').click()">📤 Importar Backup</button>
+            <input type="file" id="importFile" style="display:none" onchange="importarBackup(event)">
+            <button class="btn-simular btn-tool" onclick="abrirSimulador()">📊 Simular Aporte</button>
+        </div>
+    </header>
+
+    <div class="summary-cards">
+        <div class="card">Patrimônio Total: <strong id="total-geral">R$ 0,00</strong></div>
+        <div class="card">Ativos Únicos: <strong id="qtd-ativos">0</strong></div>
+    </div>
+
+    <div class="form-box">
+        <select id="selG" onchange="popularS()"><option value="">Grupo...</option></select>
+        <select id="selS" onchange="popularE()"><option value="">Subgrupo...</option></select>
+        <select id="selE"><option value="">Estratégia...</option></select>
+        <input type="text" id="nome" placeholder="Ativo">
+        <input type="text" id="corr" placeholder="Corretora">
+        <input type="text" id="cnpj" placeholder="CNPJ">
+        <input type="number" id="valor" placeholder="Valor (R$)">
+        <button class="btn-add" onclick="adicionarAtivo()">Salvar Ativo</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Estrutura / Ativo</th>
+                <th>Corretora</th>
+                <th>CNPJ</th>
+                <th>Valor Atual</th>
+                <th>% Real</th>
+                <th>% Alvo</th>
+                <th>Valor Alvo</th>
+                <th>Ajuste</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody id="corpoTabela"></tbody>
+    </table>
+</div>
+
+<!-- Modal Simulador -->
+<div id="modalSimulador" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="fecharSimulador()">&times;</span>
+        <h3>Simulador de Aporte</h3>
+        <select id="simTipo" onchange="atualizarSaldosSimulador()" style="width:100%; margin-bottom:10px;">
+            <option value="SUPER_CARTEIRA">Super Carteira</option>
+            <option value="PREVIDENCIA">Previdência</option>
+        </select>
+        <input type="number" id="simValorAporte" placeholder="Valor do Aporte (R$)" oninput="calcularRebalanceamento()" style="width:100%; margin-bottom:20px;">
+        <div id="simInputsSaldos"></div>
+        <table id="simResultadoTable" style="margin-top:20px; width: 100%;">
+            <thead><tr><th>Classe</th><th>Meta</th><th>Sugerido</th></tr></thead>
+            <tbody id="simResultadoBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const estrutura = {
+        "RESERVA": { nome: "RESERVA DE EMERGÊNCIA", pesoG: 100, subs: { "Segurança": { pesoS: 100, ests: { "Fundo Taxa Zero": 50, "Reserva Alternativa": 50 } } } },
+        "SUPER_CARTEIRA": { nome: "SUPER CARTEIRA", pesoG: 100, subs: { 
+            "Estabilidade": { pesoS: 22.5, ests: { "Baunilha": 70, "Pimentinha": 30 } },
+            "Diversificação": { pesoS: 40, ests: { "Viés Macro": 30, "Ex-Tesoureiros": 40, "Viés Global": 20, "Agro": 3, "Infraestrutura": 5, "Pimentinha": 2 } },
+            "Valorização": { pesoS: 30, ests: { "Qualidade": 40, "Fora do Radar": 15, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 } },
+            "Antifragilidade": { pesoS: 7.5, ests: { "Ouro": 33.4, "Dólar": 66.6 } }
+        }},
+        "PREVIDENCIA": { nome: "PREVIDÊNCIA", pesoG: 100, subs: {
+            "Estabilidade": { pesoS: 22.5, ests: { "Baunilha": 70, "Pimentinha": 30 } },
+            "Diversificação": { pesoS: 40, ests: { "Viés Macro": 35, "Ex-Tesoureiros": 40, "Viés Global": 22, "Pimentinha": 3 } },
+            "Valorização": { pesoS: 30, ests: { "Qualidade": 40, "Fora do Radar": 30, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 } },
+            "Fundos de Fundos": { pesoS: 7.5, ests: { "Fundos de Fundos": 100 } }
+        }},
+        "SATELITE": { nome: "SATÉLITE", pesoG: 100, subs: { "Cripto": { pesoS: 100, ests: { "Cripto": 100 } } } }
+    };
+
+    let dados = JSON.parse(localStorage.getItem('invest_v9')) || [];
+
+    function popularS() {
+        const g = document.getElementById('selG').value;
+        const s = document.getElementById('selS');
+        s.innerHTML = '<option value="">Subgrupo...</option>';
+        if(g) Object.keys(estrutura[g].subs).forEach(k => s.innerHTML += `<option value="${k}">${k}</option>`);
+    }
+
+    function popularE() {
+        const g = document.getElementById('selG').value;
+        const s = document.getElementById('selS').value;
+        const e = document.getElementById('selE');
+        e.innerHTML = '<option value="">Estratégia...</option>';
+        if(g && s) Object.keys(estrutura[g].subs[s].ests).forEach(k => e.innerHTML += `<option value="${k}">${k}</option>`);
+    }
+
+    function adicionarAtivo() {
+        const g = document.getElementById('selG').value, s = document.getElementById('selS').value, e = document.getElementById('selE').value;
+        const nome = document.getElementById('nome').value.trim(), valor = parseFloat(document.getElementById('valor').value) || 0;
+        const cnpj = document.getElementById('cnpj').value.trim();
+        const data = new Date().toLocaleDateString();
+
+        if(!e || !nome || valor <= 0) return alert("Dados insuficientes");
+
+        const idx = (cnpj !== "") ? dados.findIndex(d => d.cnpj === cnpj && d.e === e) : -1;
+
+        if(idx > -1) {
+            dados[idx].valor += valor;
+            dados[idx].aportes.push({ data, valor });
+        } else {
+            dados.push({ g, s, e, nome, corr: document.getElementById('corr').value, cnpj, valor, aportes: [{ data, valor }] });
+        }
+        
+        ["nome", "corr", "cnpj", "valor"].forEach(id => document.getElementById(id).value = "");
+        render();
+    }
+
+    function render() {
+        localStorage.setItem('invest_v9', JSON.stringify(dados));
+        const corpo = document.getElementById('corpoTabela');
+        corpo.innerHTML = '';
+        
+        const totalSC = dados.filter(a => a.g === "SUPER_CARTEIRA").reduce((a, b) => a + b.valor, 0);
+        const totalGeral = dados.reduce((a, b) => a + b.valor, 0);
+        
+        document.getElementById('total-geral').innerText = `R$ ${totalGeral.toLocaleString('pt-BR')}`;
+        document.getElementById('qtd-ativos').innerText = dados.length;
+
+        Object.keys(estrutura).forEach(gK => {
+            const ativosG = dados.filter(a => a.g === gK);
+            if(ativosG.length === 0) return;
+            const totalG = ativosG.reduce((a, b) => a + b.valor, 0);
+            
+            corpo.innerHTML += `<tr class="row-group"><td>${estrutura[gK].nome}</td><td colspan="2"></td><td>R$ ${totalG.toLocaleString('pt-BR')}</td><td colspan="5"></td></tr>`;
+
+            Object.keys(estrutura[gK].subs).forEach(sK => {
+                const ativosS = ativosG.filter(a => a.s === sK);
+                const totalS = ativosS.reduce((a, b) => a + b.valor, 0);
+                const baseCalculo = (gK === "SATELITE") ? totalSC : totalG;
+                const alvoS = baseCalculo * (estrutura[gK].subs[sK].pesoS / 100) * (gK === "SATELITE" ? 0.03 : 1);
+                const ajusteS = alvoS - totalS;
+
+                corpo.innerHTML += `<tr class="row-subgroup"><td>↳ ${sK}</td><td colspan="2"></td><td>R$ ${totalS.toLocaleString('pt-BR')}</td><td>${(totalS/baseCalculo*100 || 0).toFixed(1)}%</td><td>${gK === "SATELITE" ? "3" : estrutura[gK].subs[sK].pesoS}%</td><td>R$ ${alvoS.toLocaleString('pt-BR')}</td><td class="${ajusteS > 0 ? 'pos' : 'neg'}">R$ ${ajusteS.toLocaleString('pt-BR')}</td><td></td></tr>`;
+
+                Object.keys(estrutura[gK].subs[sK].ests).forEach(eK => {
+                    const ativosE = ativosS.filter(a => a.e === eK);
+                    const totalE = ativosE.reduce((a, b) => a + b.valor, 0);
+                    const alvoE = alvoS * (estrutura[gK].subs[sK].ests[eK] / 100);
+                    const ajusteE = alvoE - totalE;
+
+                    corpo.innerHTML += `<tr class="row-strategy"><td style="padding-left:20px;">--- ${eK}</td><td colspan="2"></td><td>R$ ${totalE.toLocaleString('pt-BR')}</td><td>${(totalE/totalS*100 || 0).toFixed(1)}%</td><td>${estrutura[gK].subs[sK].ests[eK]}%</td><td>R$ ${alvoE.toLocaleString('pt-BR')}</td><td class="${ajusteE > 0 ? 'pos' : 'neg'}">R$ ${ajusteE.toLocaleString('pt-BR')}</td><td></td></tr>`;
+
+                    ativosE.forEach(item => {
+                        const realIdx = dados.indexOf(item);
+                        corpo.innerHTML += `<tr><td style="padding-left:35px; font-weight:bold;">${item.nome}</td><td>${item.corr}</td><td>${item.cnpj}</td><td style="font-weight:bold;">R$ ${item.valor.toLocaleString('pt-BR')}</td><td colspan="4"></td><td><button onclick="editarValor(${realIdx})">✏️</button> <button onclick="remover(${realIdx})" style="color:red">X</button></td></tr>`;
+                        item.aportes.forEach(ap => {
+                            corpo.innerHTML += `<tr class="row-history"><td class="indent-history">Aporte em ${ap.data}</td><td colspan="2"></td><td>R$ ${ap.valor.toLocaleString('pt-BR')}</td><td colspan="5"></td></tr>`;
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    function editarValor(idx) {
+        const novo = prompt("Valor Consolidado:", dados[idx].valor);
+        if(novo !== null) { dados[idx].valor = parseFloat(novo) || 0; render(); }
+    }
+
+    function remover(idx) { if(confirm("Remover este ativo e todo seu histórico?")) { dados.splice(idx,1); render(); } }
+
+    // BACKUP E EXPORTAÇÃO
+    function exportarCSV() {
+        let csv = "Grupo;Subgrupo;Estrategia;Ativo;Corretora;CNPJ;Valor;Data\n";
+        dados.forEach(d => {
+            d.aportes.forEach(ap => {
+                csv += `${d.g};${d.s};${d.e};${d.nome};${d.corr};${d.cnpj};${ap.valor};${ap.data}\n`;
+            });
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute("download", "meus_investimentos.csv");
+        link.click();
+    }
+
+    function importarBackup(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                // Suporte para importar CSV básico ou JSON se desejar expandir futuramente
+                alert("Para importar, cole o conteúdo do backup aqui ou envie o JSON gerado.");
+            } catch (err) { alert("Erro ao ler arquivo."); }
+        };
+        reader.readAsText(file);
+    }
+
+    // SIMULADOR
+    function abrirSimulador() { document.getElementById('modalSimulador').style.display = 'block'; atualizarSaldosSimulador(); }
+    function fecharSimulador() { document.getElementById('modalSimulador').style.display = 'none'; }
+    function atualizarSaldosSimulador() {
+        const t = document.getElementById('simTipo').value, cont = document.getElementById('simInputsSaldos');
+        cont.innerHTML = "";
+        Object.keys(estrutura[t].subs).forEach(s => {
+            const saldo = dados.filter(a => a.g === t && a.s === s).reduce((sum, a) => sum + a.valor, 0);
+            cont.innerHTML += `<label>${s}:</label><input type="number" class="sim-saldo" data-s="${s}" value="${saldo.toFixed(2)}" oninput="calcularRebalanceamento()"><br>`;
+        });
+        calcularRebalanceamento();
+    }
+    function calcularRebalanceamento() {
+        const t = document.getElementById('simTipo').value, aporte = parseFloat(document.getElementById('simValorAporte').value) || 0;
+        const inputs = document.querySelectorAll('.sim-saldo'), res = document.getElementById('simResultadoBody');
+        let total = aporte, saldos = {};
+        inputs.forEach(i => { let v = parseFloat(i.value) || 0; total += v; saldos[i.dataset.s] = v; });
+        res.innerHTML = "";
+        Object.keys(estrutura[t].subs).forEach(s => {
+            const alvoV = total * (estrutura[t].subs[s].pesoS / 100);
+            const nec = Math.max(0, alvoV - saldos[s]);
+            res.innerHTML += `<tr><td>${s}</td><td>${estrutura[t].subs[s].pesoS}%</td><td class="pos">R$ ${nec.toLocaleString('pt-BR')}</td></tr>`;
+        });
+    }
+
+    const selG = document.getElementById('selG');
+    Object.keys(estrutura).forEach(g => selG.innerHTML += `<option value="${g}">${estrutura[g].nome}</option>`);
+    render();
+</script>
+</body>
+</html>
