@@ -90,7 +90,7 @@
         </select>
         <input type="number" id="simValorAporte" placeholder="Valor do Aporte (R$)" oninput="calcularRebalanceamento()" style="width:100%; margin-bottom:20px;">
         <div id="simInputsSaldos"></div>
-        <table id="simResultadoTable" style="margin-top:40px;">
+        <table id="simResultadoTable" style="margin-top:20px;">
             <thead><tr><th>Classe</th><th>Meta</th><th>Sugerido</th></tr></thead>
             <tbody id="simResultadoBody"></tbody>
         </table>
@@ -99,14 +99,13 @@
 
 <script>
     const estrutura = {
-        "RESERVA": { nome: "RESERVA DE EMERGÊNCIA", pesoG: 100, subs: { 
-            "Segurança": { pesoS: 100, ests: { "Fundo Taxa Zero": 50, "Reserva Alternativa": 50 } }
-        }},
+        "RESERVA": { nome: "RESERVA DE EMERGÊNCIA", pesoG: 100, subs: { "Segurança": { pesoS: 100, ests: { "Fundo Taxa Zero": 50, "Reserva Alternativa": 50 } } } },
         "SUPER_CARTEIRA": { nome: "SUPER CARTEIRA", pesoG: 100, subs: { 
             "Estabilidade": { pesoS: 22.5, ests: { "Baunilha": 70, "Pimentinha": 30 } },
             "Diversificação": { pesoS: 40, ests: { "Viés Macro": 30, "Ex-Tesoureiros": 40, "Viés Global": 20, "Agro": 3, "Infraestrutura": 5, "Pimentinha": 2 } },
             "Valorização": { pesoS: 30, ests: { "Qualidade": 40, "Fora do Radar": 15, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 } },
             "Antifragilidade": { pesoS: 7.5, ests: { "Ouro": 33.4, "Dólar": 66.6 } },
+            "Satélite": { pesoS: 3, ests: { "Cripto": 100 } }
         }},
         "PREVIDENCIA": { nome: "PREVIDÊNCIA", pesoG: 100, subs: {
             "Estabilidade": { pesoS: 22.5, ests: { "Baunilha": 70, "Pimentinha": 30 } },
@@ -114,7 +113,6 @@
             "Valorização": { pesoS: 30, ests: { "Qualidade": 40, "Fora do Radar": 30, "Perfil Global": 12, "Viés Comprado": 30, "Pimentinha": 3 } },
             "Fundos de Fundos": { pesoS: 7.5, ests: { "Fundos de Fundos": 100 } }
         }}
-        "SATÉLITE": { nome: "SATÉLITE", pesoS: 3, ests: { "Cripto": 100 } }
     };
 
     let dados = JSON.parse(localStorage.getItem('invest_v7')) || [];
